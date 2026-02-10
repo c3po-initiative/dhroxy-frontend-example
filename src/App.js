@@ -4,6 +4,7 @@ import DataViewer from './components/DataViewer';
 import DemoMenu from './components/demos/DemoMenu';
 import HeaderConfig from './components/HeaderConfig';
 import HealthKitViewer from './components/HealthKitViewer';
+import IPSViewer from './components/IPSViewer';
 import sundhedDkService from './services/sundhedDkService';
 
 // Minimalistisk, tillidsfuld dansk sundhedsplatform
@@ -247,6 +248,7 @@ Giv personlige, kontekstbaserede sundhedsråd på dansk. Vær empatisk og profes
                 { id: 'healthkit', icon: Watch, label: 'Apple HealthKit' },
                 { id: 'demos', icon: Beaker, label: 'Labsvar Demo' },
                 { id: 'dataviewer', icon: Database, label: 'Data Viewer' },
+                { id: 'ips', icon: FileText, label: 'Patient Summary (IPS)' },
                 { id: 'kram', icon: Activity, label: 'KRAM-faktorer' },
                 { id: 'socio', icon: Wallet, label: 'Socioøkonomi' },
                 { id: 'family', icon: Users, label: 'Familiehistorik' },
@@ -668,6 +670,13 @@ Giv personlige, kontekstbaserede sundhedsråd på dansk. Vær empatisk og profes
             {activeTab === 'dataviewer' && (
               <div className="animate-fade-in">
                 <DataViewer />
+              </div>
+            )}
+
+            {/* IPS Tab */}
+            {activeTab === 'ips' && (
+              <div className="animate-fade-in">
+                <IPSViewer />
               </div>
             )}
 
