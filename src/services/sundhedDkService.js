@@ -127,6 +127,14 @@ class SundhedDkService {
   }
 
   /**
+   * Hent International Patient Summary (IPS) for en patient
+   * @param {string} patientId - Patient ID
+   */
+  async getPatientSummary(patientId) {
+    return this.fetchFromDhroxy(`${this.baseUrl}/Patient/${patientId}/$summary`);
+  }
+
+  /**
    * Hent labsvar (Observations)
    * @param {string} omraade - KliniskBiokemi, Mikrobiologi, Patologi, eller Alle
    * @param {number} count - Antal resultater (default 50)
