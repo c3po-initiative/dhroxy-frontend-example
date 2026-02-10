@@ -2,6 +2,9 @@
 
 Example React frontend for [dhroxy](https://github.com/c3po-initiative/dhroxy) — a FHIR R4 proxy for sundhed.dk.
 
+<img width="1372" height="919" alt="REACT dhroxy" src="https://github.com/user-attachments/assets/af21265c-4b26-4d9a-bb39-002988f5854e" />
+
+
 ## What it does
 
 A Danish health data dashboard ("Min Sundhedsagent") that fetches real patient data from sundhed.dk via dhroxy and presents it in a unified interface.
