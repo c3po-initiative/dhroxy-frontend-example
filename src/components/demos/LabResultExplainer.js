@@ -34,9 +34,16 @@ const LabResultExplainer = () => {
   const fetchLabResults = async () => {
     setLoading(true);
     try {
-      const result = await sundhedDkService.getLabResults('Alle', 20);
+      const result = await sundhedDkService.getLabResults('Alle', 50);
       if (result.success && result.data?.entry) {
-        const observations = result.data.entry.map(e => e.resource);
+        const observations = result.data.entry
+          .map(e => e.resource)
+          .filter(Boolean)
+          .sort((a, b) => {
+            const dateA = a.effectiveDateTime || a.effectivePeriod?.start || '';
+            const dateB = b.effectiveDateTime || b.effectivePeriod?.start || '';
+            return dateB.localeCompare(dateA); // newest first
+          });
         setLabResults(observations);
       }
     } catch (error) {

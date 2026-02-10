@@ -32,7 +32,8 @@ const TrendAnalysis = () => {
     try {
       const result = await sundhedDkService.getLabResults('Alle', 100);
       if (result.success && result.data?.entry) {
-        const observations = result.data.entry.map(e => e.resource);
+        const observations = result.data.entry.map(e => e.resource).filter(Boolean)
+          .sort((a, b) => (b.effectiveDateTime || '').localeCompare(a.effectiveDateTime || ''));
         const grouped = groupByTestType(observations);
         setGroupedResults(grouped);
       }

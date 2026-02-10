@@ -37,7 +37,7 @@ const LabChat = () => {
   const fetchLabData = async () => {
     setLoadingData(true);
     try {
-      const result = await sundhedDkService.getLabResults('Alle', 30);
+      const result = await sundhedDkService.getLabResults('Alle', 100);
       if (result.success && result.data?.entry) {
         setLabData(result.data);
 
@@ -66,7 +66,8 @@ const LabChat = () => {
   const formatLabContext = () => {
     if (!labData?.entry) return 'Ingen labdata tilgængelig';
 
-    const observations = labData.entry.map(e => e.resource);
+    const observations = labData.entry.map(e => e.resource).filter(Boolean)
+      .sort((a, b) => (b.effectiveDateTime || '').localeCompare(a.effectiveDateTime || ''));
     const formatted = observations.map(obs => {
       const name = obs.code?.coding?.[0]?.display || obs.code?.text || 'Ukendt';
       const value = obs.valueQuantity?.value;

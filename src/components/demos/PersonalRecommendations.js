@@ -58,7 +58,8 @@ const PersonalRecommendations = () => {
     try {
       const result = await sundhedDkService.getLabResults('Alle', 500);
       if (result.success && result.data?.entry) {
-        const observations = result.data.entry.map(e => e.resource);
+        const observations = result.data.entry.map(e => e.resource).filter(Boolean)
+          .sort((a, b) => (b.effectiveDateTime || '').localeCompare(a.effectiveDateTime || ''));
         setLabResults(observations);
       }
     } catch (error) {

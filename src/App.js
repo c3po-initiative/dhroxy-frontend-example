@@ -90,7 +90,7 @@ const SundhedsAgent = () => {
 
       // Fetch each resource individually in parallel
       // Observation: dhroxy defaults to 6 months lookback, use 10 years instead
-      const resources = ['Patient', 'Observation?date=ge2015-01-01&_count=1000', 'Condition',
+      const resources = ['Patient', 'Observation?date=ge2015-01-01&_sort=-date&_count=1000', 'Condition',
                          'MedicationStatement', 'Immunization', 'Appointment'];
 
       const results = await Promise.allSettled(

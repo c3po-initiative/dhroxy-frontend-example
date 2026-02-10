@@ -94,9 +94,10 @@ class SundhedDkService {
    */
   async fetchFromDhroxy(url, options = {}) {
     try {
-      // Merge headers: Content-Type < custom headers < request-specific headers
+      // Merge headers: defaults < custom headers < request-specific headers
       const mergedHeaders = {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...this.customHeaders,
         ...options.headers
       };
@@ -131,8 +132,9 @@ class SundhedDkService {
    * @param {number} count - Antal resultater (default 50)
    */
   async getLabResults(omraade = 'Alle', count = 50) {
-    // Hent data fra 2010 og frem
-    let url = `${this.baseUrl}/Observation?_count=${count}`;
+    // dhroxy defaults to 6 months lookback — use 10 years instead
+    // _sort=-date ensures newest results first (server-side sorting)
+    let url = `${this.baseUrl}/Observation?date=ge2015-01-01&_sort=-date&_count=${count}`;
     return this.fetchFromDhroxy(url);
   }
 
@@ -264,8 +266,8 @@ class SundhedDkService {
   }
 
   /**
-   * Hent alt patient data på én gang (bundle request)
-   * Dette er den mest effektive måde at hente data på
+   * Hent alt patient data via individuelle parallelle GET requests.
+   * Resultater samles i et bundle-lignende format.
    */
   async getAllPatientData(options = {}) {
     const {
@@ -282,75 +284,50 @@ class SundhedDkService {
       includeOrganizations = true
     } = options;
 
-    const bundleEntries = [
-      { request: { method: 'GET', url: 'Patient' } }
-    ];
+    // Build list of resources to fetch
+    const resources = ['Patient'];
 
     if (includeLabResults) {
-      const labUrl = `Observation?_count=${labCount}`;
-      bundleEntries.push({ request: { method: 'GET', url: labUrl } });
+      resources.push(`Observation?date=ge2015-01-01&_sort=-date&_count=${labCount}`);
     }
-
-    if (includeConditions) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'Condition' }
-      });
-    }
-
-    if (includeEncounters) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'Encounter' }
-      });
-    }
-
-    if (includeDocuments) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'DocumentReference' }
-      });
-    }
-
+    if (includeConditions) resources.push('Condition');
+    if (includeEncounters) resources.push('Encounter');
+    if (includeDocuments) resources.push('DocumentReference');
     if (includeMedication) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'MedicationStatement' }
-      });
-      bundleEntries.push({
-        request: { method: 'GET', url: 'MedicationRequest' }
-      });
+      resources.push('MedicationStatement');
+      resources.push('MedicationRequest');
     }
+    if (includeImmunizations) resources.push('Immunization');
+    if (includeImaging) resources.push('DiagnosticReport');
+    if (includeAppointments) resources.push('Appointment');
+    if (includeOrganizations) resources.push('Organization');
 
-    if (includeImmunizations) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'Immunization' }
-      });
+    try {
+      const results = await Promise.allSettled(
+        resources.map(res => this.fetchFromDhroxy(`${this.baseUrl}/${res}`))
+      );
+
+      const entries = results.map((result) => ({
+        resource: (result.status === 'fulfilled' && result.value?.success)
+          ? result.value.data
+          : null
+      }));
+
+      const successCount = entries.filter(e => e.resource).length;
+      if (successCount > 0) {
+        return {
+          success: true,
+          data: {
+            resourceType: 'Bundle',
+            type: 'transaction-response',
+            entry: entries
+          }
+        };
+      }
+      return { success: false, error: 'All resource requests failed' };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
-
-    if (includeImaging) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'DiagnosticReport' }
-      });
-    }
-
-    if (includeAppointments) {
-      // Dhroxy håndterer default dato range (1 år tilbage til 1 år frem)
-      bundleEntries.push({
-        request: { method: 'GET', url: 'Appointment' }
-      });
-    }
-
-    if (includeOrganizations) {
-      bundleEntries.push({
-        request: { method: 'GET', url: 'Organization' }
-      });
-    }
-
-    return this.fetchFromDhroxy(this.baseUrl, {
-      method: 'POST',
-      body: JSON.stringify({
-        resourceType: 'Bundle',
-        type: 'transaction',
-        entry: bundleEntries
-      })
-    });
   }
 }
 
