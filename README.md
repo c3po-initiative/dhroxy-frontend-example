@@ -1,70 +1,78 @@
-# Getting Started with Create React App
+# dhroxy-frontend-example
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Example React frontend for [dhroxy](https://github.com/c3po-initiative/dhroxy) — a FHIR R4 proxy for sundhed.dk.
 
-## Available Scripts
+## Prerequisites
 
-In the project directory, you can run:
+- [dhroxy](https://github.com/c3po-initiative/dhroxy) running on port 8080
+- Node.js 18+
 
-### `npm start`
+```bash
+# Start dhroxy from the published container
+docker run -p 8080:8080 ghcr.io/c3po-initiative/dhroxy:latest
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Quick start
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```bash
+npm install
+npm start
+```
 
-### `npm test`
+Opens on http://localhost:3000. The dev proxy forwards `/fhir/*` requests to `localhost:8080`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Authentication
 
-### `npm run build`
+sundhed.dk requires session headers. The frontend cannot set `Cookie` directly via `fetch()`, so it uses `X-Sundhed-*` prefixed headers. The dev proxy (`setupProxy.js`) maps these to the raw names dhroxy expects:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+| Frontend sends | Proxy maps to | dhroxy forwards to sundhed.dk |
+|---|---|---|
+| `X-Sundhed-Cookie` | `cookie` | `cookie` |
+| `X-Sundhed-XSRF-Token` | `x-xsrf-token` | `x-xsrf-token` |
+| `X-Sundhed-Conversation-UUID` | `conversation-uuid` | `conversation-uuid` |
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+To get these values: log in to sundhed.dk, open DevTools > Network, and copy from any request.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## How it works
 
-### `npm run eject`
+The app fetches FHIR resources from dhroxy as individual parallel GET requests:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
+GET /fhir/Patient
+GET /fhir/Observation?date=ge2015-01-01&_count=1000
+GET /fhir/Condition
+GET /fhir/MedicationStatement
+GET /fhir/Immunization
+GET /fhir/Appointment
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Each request includes `Accept: application/json` (required — without it sundhed.dk returns HTML for some endpoints).
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Results are assembled client-side into a bundle structure for the UI.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Key files
 
-## Learn More
+| File | Purpose |
+|---|---|
+| `src/setupProxy.js` | Dev proxy: header mapping + forwarding to dhroxy (http-proxy-middleware v3) |
+| `src/App.js` | Main app, `fetchPatientData()` fetches all FHIR resources |
+| `src/components/HeaderConfig.js` | UI for entering sundhed.dk session headers |
+| `src/services/sundhedDkService.js` | FHIR service client with per-resource methods |
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Notes
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- **Port 8080** is the standard dhroxy port — all references use this.
+- **Observation lookback**: dhroxy defaults to 6 months. The frontend requests `date=ge2015-01-01` for a wider window.
+- **Partial failures**: if some endpoints fail (e.g. expired session for specific endpoints), the rest still load.
+- **setupProxy.js** uses `http-proxy-middleware` v3 API (`on: { proxyReq }`, not `onProxyReq`). This file only applies during development.
 
-### Code Splitting
+## Production
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+For production, the frontend is built as static files and served by dhroxy's Spring Boot backend:
 
-### Analyzing the Bundle Size
+```bash
+npm run build
+# Output in build/ — copy to src/main/resources/static/ in the dhroxy project
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+See the [dhroxy Dockerfile](https://github.com/c3po-initiative/dhroxy/blob/main/Dockerfile) for the multi-stage build that does this automatically.
